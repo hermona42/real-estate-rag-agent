@@ -1,6 +1,6 @@
 import io
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pypdf import PdfReader
 import pytesseract
@@ -39,21 +39,23 @@ class PDFProcessor:
             logger.warning(f"OCR failed on image: {e}")
             return ""
 
-    def process_pdf(self, file_path: str) -> List[Document]:
+    def process_pdf(self, file_path_or_stream: Union[str, io.BytesIO], source_name: Optional[str] = None) -> List[Document]:
         """
         Extract text from a PDF file. Uses pypdf for digital text and 
         pytesseract as an OCR fallback for scanned pages.
 
         Args:
-            file_path: Path to the PDF file.
+            file_path_or_stream: Path to the PDF file or a file-like object containing bytes.
+            source_name: Optional name for metadata. Defaults to path or "stream".
 
         Returns:
             A list of Document objects, one for each page.
         """
         documents = []
+        source_display = source_name if source_name else (file_path_or_stream if isinstance(file_path_or_stream, str) else "stream")
         
         try:
-            reader = PdfReader(file_path)
+            reader = PdfReader(file_path_or_stream)
             total_pages = len(reader.pages)
             
             for i, page in enumerate(reader.pages):
@@ -79,7 +81,7 @@ class PDFProcessor:
                         text = "\n\n".join(ocr_text_parts)
                 
                 metadata = {
-                    "source": file_path,
+                    "source": source_display,
                     "page": page_num,
                     "total_pages": total_pages
                 }
@@ -88,7 +90,15 @@ class PDFProcessor:
                 documents.append(doc)
                 
         except Exception as e:
-            logger.error(f"Error processing PDF {file_path}: {e}")
+            logger.error(f"Error processing PDF {source_display}: {e}")
             raise
             
         return documents
+
+
+def process_pdf_document(contents: bytes, filename: str) -> List[Document]:
+    """
+    Helper function to process a PDF from memory (bytes) in FastAPI endpoints.
+    """
+    processor = PDFProcessor()
+    return processor.process_pdf(io.BytesIO(contents), source_name=filename)

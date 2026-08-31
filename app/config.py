@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # LLM Settings
     OPENAI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
     
     # Qdrant Vector DB Settings
     QDRANT_HOST: str = "localhost"
