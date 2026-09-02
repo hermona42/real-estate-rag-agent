@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.config import settings
 from app.services.pdf_parser import process_pdf_document
@@ -27,6 +27,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
+    extracted_data: Optional[Dict[str, Any]] = None
 
 
 @app.get("/")
@@ -82,7 +83,8 @@ def chat_with_agent(request: ChatRequest):
 
         return ChatResponse(
             answer=result.get("answer", "No answer generated."),
-            sources=sources
+            sources=sources,
+            extracted_data=result.get("extracted_data")
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}")

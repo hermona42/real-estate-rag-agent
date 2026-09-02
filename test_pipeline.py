@@ -66,5 +66,24 @@ def test_pipeline():
         print(f"Chat failed with status {chat_res.status_code}:", chat_res.text)
         sys.exit(1)
 
+    # 6. Extraction query
+    extraction_question = "Extract all property metadata and financial terms."
+    print(f"\nAsking extraction question: '{extraction_question}'")
+    ext_res = requests.post(
+        f"{base_url}/chat", 
+        json={"question": extraction_question}
+    )
+    
+    if ext_res.status_code == 200:
+        data = ext_res.json()
+        print("\n=== Extraction Answer ===")
+        print(data.get("answer"))
+        print("\n=== Extracted Data ===")
+        import json
+        print(json.dumps(data.get("extracted_data"), indent=2))
+    else:
+        print(f"Extraction chat failed with status {ext_res.status_code}:", ext_res.text)
+        sys.exit(1)
+
 if __name__ == "__main__":
     test_pipeline()
