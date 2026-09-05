@@ -15,10 +15,14 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     
     # Qdrant Vector DB Settings
+    QDRANT_USE_MEMORY: bool = True
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
     QDRANT_URL: Optional[str] = None
     QDRANT_API_KEY: Optional[str] = None
+
+    # OCR Settings (Windows users may need to set this explicitly)
+    TESSERACT_CMD: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

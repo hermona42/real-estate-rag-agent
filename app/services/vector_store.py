@@ -20,9 +20,27 @@ class VectorStoreService:
             google_api_key=settings.GEMINI_API_KEY
         )
         
-        # Initialize local Qdrant Client (in-memory mode for easy development/testing)
-        self.client = QdrantClient(":memory:")
+        self.client = self._create_qdrant_client()
         self._ensure_collection_exists()
+
+    def _create_qdrant_client(self) -> QdrantClient:
+        """Connect to Qdrant using URL, host/port, or in-memory mode."""
+        if settings.QDRANT_URL:
+            return QdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY,
+            )
+        if settings.QDRANT_USE_MEMORY:
+            return QdrantClient(":memory:")
+        return QdrantClient(
+            host=settings.QDRANT_HOST,
+            port=settings.QDRANT_PORT,
+            api_key=settings.QDRANT_API_KEY,
+        )
+
+    def _embedding_dimension(self) -> int:
+        """Resolve vector size from the active embedding model."""
+        return len(self.embeddings.embed_query("dimension probe"))
 
     def _ensure_collection_exists(self):
         """Creates the Qdrant vector collection if it doesn't already exist."""
@@ -30,7 +48,10 @@ class VectorStoreService:
         if COLLECTION_NAME not in collections:
             self.client.create_collection(
                 collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(size=768, distance=Distance.COSINE),
+                vectors_config=VectorParams(
+                    size=self._embedding_dimension(),
+                    distance=Distance.COSINE,
+                ),
             )
 
     def chunk_documents(self, documents: List[Document]) -> List[Document]:

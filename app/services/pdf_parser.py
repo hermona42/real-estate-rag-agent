@@ -5,7 +5,10 @@ from typing import List, Optional, Union
 from pypdf import PdfReader
 import pytesseract
 from PIL import Image
+from pdf2image import convert_from_bytes
 from langchain_core.documents import Document
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +27,9 @@ class PDFProcessor:
                            Useful for Windows where tesseract might not be in PATH
                            (e.g., r'C:\Program Files\Tesseract-OCR\tesseract.exe').
         """
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        cmd = tesseract_cmd or settings.TESSERACT_CMD
+        if cmd:
+            pytesseract.pytesseract.tesseract_cmd = cmd
 
     def _extract_text_with_ocr(self, image_data: bytes) -> str:
         """
@@ -37,6 +41,21 @@ class PDFProcessor:
             return text.strip()
         except Exception as e:
             logger.warning(f"OCR failed on image: {e}")
+            return ""
+
+    def _extract_page_with_pdf2image(self, pdf_bytes: bytes, page_num: int) -> str:
+        """Render a PDF page to an image and run OCR (for fully scanned documents)."""
+        try:
+            images = convert_from_bytes(
+                pdf_bytes,
+                first_page=page_num,
+                last_page=page_num,
+            )
+            if not images:
+                return ""
+            return pytesseract.image_to_string(images[0]).strip()
+        except Exception as e:
+            logger.warning(f"pdf2image OCR failed on page {page_num}: {e}")
             return ""
 
     def process_pdf(self, file_path_or_stream: Union[str, io.BytesIO], source_name: Optional[str] = None) -> List[Document]:
@@ -53,6 +72,10 @@ class PDFProcessor:
         """
         documents = []
         source_display = source_name if source_name else (file_path_or_stream if isinstance(file_path_or_stream, str) else "stream")
+        pdf_bytes: Optional[bytes] = None
+        if isinstance(file_path_or_stream, io.BytesIO):
+            pdf_bytes = file_path_or_stream.getvalue()
+            file_path_or_stream.seek(0)
         
         try:
             reader = PdfReader(file_path_or_stream)
@@ -77,8 +100,9 @@ class PDFProcessor:
                                 ocr_text_parts.append(ocr_text)
                     
                     if ocr_text_parts:
-                        # Combine OCR text from all images on the page
                         text = "\n\n".join(ocr_text_parts)
+                    elif pdf_bytes:
+                        text = self._extract_page_with_pdf2image(pdf_bytes, page_num)
                 
                 metadata = {
                     "source": source_display,

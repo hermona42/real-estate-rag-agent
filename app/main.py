@@ -30,6 +30,14 @@ class ChatResponse(BaseModel):
     extracted_data: Optional[Dict[str, Any]] = None
 
 
+@app.on_event("startup")
+def validate_settings():
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError(
+            "GEMINI_API_KEY is required. Copy .env.example to .env and set your key."
+        )
+
+
 @app.get("/")
 def read_root():
     return {"status": "online", "app_name": settings.APP_NAME}
